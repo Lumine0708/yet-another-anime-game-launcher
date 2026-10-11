@@ -1,0 +1,33 @@
+--- a/FEXCore/Source/Interface/Core/OpcodeDispatcher.cpp
++++ b/FEXCore/Source/Interface/Core/OpcodeDispatcher.cpp
+@@ -1275,8 +1275,14 @@
+         _StoreContextGPR(OpSize::i16Bit, Src, offsetof(FEXCore::Core::CPUState, gs_idx));
+         UpdatePrefixFromSegment(Src, FEXCore::X86Tables::DecodeFlags::FLAG_GS_PREFIX);
+       } else {
++#ifdef _WIN32
++        // ARM64EC keeps the Windows TEB in gs_cached across selector writes,
++        // just as LoadStateFromECContext does when restoring segment state.
++        _StoreContextGPR(OpSize::i16Bit, Src, offsetof(FEXCore::Core::CPUState, gs_idx));
++#else
+         LogMan::Msg::EFmt("We don't support modifying GS selector in 64bit mode!");
+         DecodeFailure = true;
++#endif
+       }
+       break;
+     case FEXCore::X86State::REG_RSP: // FS
+@@ -1313,11 +1319,15 @@
+       break;
+     case FEXCore::X86State::REG_RBP: // GS
+     case FEXCore::X86State::REG_R13: // GS
++#ifdef _WIN32
++      Segment = _LoadContextGPR(OpSize::i16Bit, offsetof(FEXCore::Core::CPUState, gs_idx));
++#else
+       if (Is64BitMode) {
+         Segment = Constant(0);
+       } else {
+         Segment = _LoadContextGPR(OpSize::i16Bit, offsetof(FEXCore::Core::CPUState, gs_idx));
+       }
++#endif
+       break;
+     case FEXCore::X86State::REG_RSP: // FS
+     case FEXCore::X86State::REG_R12: // FS

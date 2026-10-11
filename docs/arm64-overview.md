@@ -11,7 +11,7 @@
 | 同步来源 | [上游 PR #775](https://github.com/yaagl/yet-another-anime-game-launcher/pull/775)，截至记录日期仍为 open draft |
 | PR 基点 | `784dda385c536286ef75f92e990514ac81509784`，与同步时 fork 的 `main` 一致 |
 | 已导入提交 | `a8cc17783e422e87256c6c7080c340d532b70e93`，直接快进，保留原提交与作者 |
-| 本轮交付 | 同步 PR、建立分支、添加总览；未修改游戏运行时 |
+| 本机推进 | ARM 启动器已构建；两套原生运行时完成基础验证；Hadron 已到未登录页初始化并保持 150 秒且窗口有响应，MacNeutron Logo 崩溃未解决；真实画面及跨应用切换待验收，详见 [本机验证记录](arm64-validation.md) |
 | 长期议题 | [上游 issue #725](https://github.com/yaagl/yet-another-anime-game-launcher/issues/725)，仍处于调查/规划阶段 |
 
 ## 目标与架构
@@ -44,7 +44,7 @@ Wine 提供 Windows API，FEX 执行仍然是 x86/x64 的游戏代码；不要�
 
 ## 运行时是否有可复用的开源实现
 
-已有公开的原生 Wine/FEX/DXMT 构建路线，可以在此基础上做最小验证，无需从零写一套 macOS 模拟器；目前尚未选定或导入其中任何一套。
+已有公开的原生 Wine/FEX/DXMT 构建路线，可以在此基础上做最小验证，无需从零写一套 macOS 模拟器；已在隔离目录测试两套签名发布包，尚未选定接入启动器的运行时。
 
 | 候选 | 可以复用的内容 | 证据边界 |
 | --- | --- | --- |
@@ -53,7 +53,7 @@ Wine 提供 Windows API，FEX 执行仍然是 x86/x64 的游戏代码；不要�
 
 复用范围先限定为运行时及其必要补丁，不引入候选项目的整套启动器、Steam 集成或与首个游戏无关的图形栈。
 
-这些组件的开源代码可按各自许可证使用，无需购买 CrossOver。但源码许可与 Apple 的签名条件是两件事：[Hadron loader 签名说明](https://github.com/Broyojo/hadron/blob/main/docs/apple-developer-setup.md)及 MacNeutron 构建说明要求带跨架构 entitlement 的签名/profile；自行生成这种 loader 需要相应开发者资格。Hadron 另有仅支持 64 位程序的开发模式，不能直接当作完整兼容版本。
+这些组件的开源代码可按各自许可证使用，无需购买 CrossOver。但源码许可与 Apple 的签名条件是两件事：[Hadron loader 签名说明](https://github.com/Broyojo/hadron/blob/main/docs/apple-developer-setup.md)及 MacNeutron 构建说明要求带跨架构 entitlement 的签名/profile；自行生成这种 loader 需要相应开发者资格；复用签名发布包做本机实验不需要自行申请。Hadron 另有仅支持 64 位程序的开发模式，不能直接当作完整兼容版本。
 
 ## 剩余阻塞点及其所在层
 
@@ -63,11 +63,11 @@ Wine 提供 Windows API，FEX 执行仍然是 x86/x64 的游戏代码；不要�
 | Windows 内存与 macOS 约束不同 | 低地址空间、4 KB 页、x18、JIT 写/执行切换及自修改代码涉及 Wine/FEX 的 Darwin 适配和 loader 权限 | 复用现有补丁并验证签名后的实际运行；不在 Yaagl 中另写 Windows 内存管理器 |
 | x86 与 ARM 的内存顺序不同 | FEX 需保证 x86 TSO 语义；硬件 TSO 和软件屏障的选择影响性能与正确性 | 确认候选运行时实际启用的模式，先过内存顺序/线程测试，再测游戏 |
 | 现有图形覆盖流程假定 Intel Wine | 启动器下载并覆盖 `x86_64-windows`、`x86_64-unix` 库，无法直接覆盖原生运行时 | 优先使用候选运行时配套 DXMT，避免旧 Intel 库覆盖它 |
-| Yaagl 游戏兼容性尚未迁移验证 | Wine API 补丁、PE 辅助程序及游戏对异常、线程、自修改代码的依赖需要一起成立；Rosetta 本身不负责解决反作弊 | 对所选 Wine 基线逐项检查现有补丁，并在实际游戏中验证启动、登录和游玩 |
+| Yaagl 游戏兼容性尚未迁移验证 | Wine API 补丁、PE 辅助程序及游戏对异常、线程、自修改代码的依赖需要一起成立；Rosetta 本身不负责解决反作弊 | 对所选 Wine 基线逐项检查现有补丁；当前仅验收国服原神未登录启动和持续运行，不执行登录 |
 
 性能不能先下“必然更好/更差”的结论：原生 Wine 减少系统接口侧的转译，游戏仍需 FEX；TSO、调用边界、自修改代码和图形后端决定净结果。候选项目的微基准或其他游戏报告不能替代同一设备、同一游戏场景的比较。
 
-已有源码适用性检查中，国服 `crypt32` 补丁、`WINE_ENABLE_TIMEOUT_FIX` 补丁在 Wine 11.17 和 Hadron 当时固定的 Wine 基线 `6880117619afdf62b4ccc40a8c6268c86613131f` 上通过了 `git apply --check`；一项 `mfreadwrite` 补丁未直接适用。补丁来源为 [riverfog7/macports-wine 的 crossover-wine 分支](https://github.com/riverfog7/macports-wine/tree/crossover-wine)。这只是补丁文本能否应用的检查，没有编译或游戏验证，也没有覆盖整个 Wine 发行版的补丁集。
+已有源码适用性检查中，国服 `crypt32` 补丁、`WINE_ENABLE_TIMEOUT_FIX` 补丁在 Wine 11.17 和 Hadron 当时固定的 Wine 基线 `6880117619afdf62b4ccc40a8c6268c86613131f` 上通过了 `git apply --check`；一项 `mfreadwrite` 补丁未直接适用。补丁来源为 [riverfog7/macports-wine 的 crossover-wine 分支](https://github.com/riverfog7/macports-wine/tree/crossover-wine)。随后在上述 Wine 11.18 基线上编译了国服 `crypt32` 和 timeout 补丁，将 ARM64X DLL / ARM64 Unix 库部署到 Hadron 隔离运行时并运行游戏；尚未覆盖整个 Wine 补丁集，具体结果见本机验证记录。
 
 移植前须以当前实际选用的 Yaagl Wine 发行版为依据，核对国服签名属性顺序、超时处理、媒体播放，以及该发行版使用的 `ntoskrnl`/WDF 兼容补丁。第三方报告中的“某游戏可启动”不能证明这些功能或反作弊链路已经验证。
 
@@ -91,19 +91,19 @@ Wine 提供 Windows API，FEX 执行仍然是 x86/x64 的游戏代码；不要�
 | 阶段 | 当前状态 | 验收与下一步 |
 | --- | --- | --- |
 | 1. 分支基线 | PR #775 已原样同步到 `lumine-develop` | 后续提交以此为基线 |
-| 2. 原生启动器 | 构建入口已继承；本机尚未完整构建 | 按 `arm64-build.md` 构建，检查 Mach-O 架构、签名、UI、下载器和 Sophon |
-| 3. 原生运行时最小验证 | 未开始 | 固定候选版本；确认 loader 签名条件；在独立 prefix 跑 wineboot、x64 程序、线程/内存和 D3D11 测试 |
-| 4. 兼容补丁与首个游戏 | 未开始 | 编译包含所需补丁的运行时；记录游戏、区服和版本；依次验证启动、登录、进入场景与稳定游玩 |
+| 2. 原生启动器 | 本机 ARM 构建、24 个 Mach-O、签名、首次运行 UI、aria2/Sophon 检查完成 | UI 首次运行仍走默认 Intel Wine 安装，未接入原生运行时 |
+| 3. 原生运行时最小验证 | Hadron 0.2.0 / MacNeutron 0.4.0 的基础验证完成 | 已核对下载、签名，在全新 prefix 跑 x64、线程/内存、有限 TSO/SMC 和 D3D11 测试；记录中列明范围 |
+| 4. 兼容补丁与首个游戏 | 国服原神 7.1.0：Hadron 实验路径已到未登录主页初始化并保持 150 秒；MacNeutron Logo 崩溃未解决 | 当前验收为未登录正常启动及持续运行；已编译国服签名/网络超时补丁；窗口尺寸与 WM_NULL 响应通过；待核对真实画面/前台切换及优化暂停配置，继续定位 MacNeutron 崩溃 |
 | 5. 启动器接入 | 未开始 | 只接入已验证的运行时；验证安装、补丁、恢复、启动与更新不会混入 Intel macOS 组件 |
 | 6. 性能与其他游戏 | 未开始 | 在相同硬件和场景对比旧路径；再验证 HSR、ZZZ，分别记录结果 |
 | 7. 发布与 macOS 28 | 未开始 | 确定 ARM 产物命名和自动更新策略；在可用的 macOS 28 环境实际验收 |
 
-下一轮先做阶段 2，再推进阶段 3；运行时最小验证通过前不铺开启动器改造。
+继续定位阶段 4；原神未登录正常启动通过前不铺开启动器运行时接入。
 
 ## 验证记录与结论边界
 
-本 fork 同步时执行了 `node --check build-app.js`、`bash -n build-arm-sidecars.sh build-sophon.sh` 和 PR 差异的 `git diff --check`，均通过。未进行依赖安装、TypeScript 检查、完整应用构建或游戏测试。
+本 fork 同步时执行了 `node --check build-app.js`、`bash -n build-arm-sidecars.sh build-sophon.sh` 和 PR 差异的 `git diff --check`，均通过。同步时未进行依赖安装、TypeScript 检查、完整应用构建或游戏测试；后续本机执行结果见 [本机验证记录](arm64-validation.md)。
 
-#775 的 [原始构建文档](arm64-build.md#validation-and-remaining-work)记录了作者的 24 个 Mach-O 组件架构、签名、aria2、xdelta 和 Sophon 检查结果。这些结果随 PR 保留，尚未在本机复现。
+#775 的 [原始构建文档](arm64-build.md#validation-and-remaining-work)记录了作者的 24 个 Mach-O 组件架构、签名、aria2、xdelta 和 Sophon 检查结果。这些结果随 PR 保留，其中架构、签名、aria2 RPC 和 Sophon 在线查询已在本机复现，HTTP/HTTPS 下载哈希及 xdelta 交叉编解码尚未重复。
 
-当前可以确认的是：ARM 启动器构建基线已经同步，公开原生运行时有可复用实现。尚不能确认的是：本 fork 已摆脱 Rosetta、Yaagl 游戏兼容补丁已经迁移完成，或 macOS 28 已可用。
+当前可以确认的是：ARM 启动器已在本机构建，原生 Wine/FEX/DXMT 的基础链路可执行 x64 程序并绘制 D3D11。实际原神尚未通过未登录正常启动验收；不能宣称本 fork 已完整摆脱 Rosetta、游戏兼容补丁迁移完成或 macOS 28 已可用。
