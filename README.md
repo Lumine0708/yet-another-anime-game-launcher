@@ -96,3 +96,6 @@ node ./build-app.js
 See [ARM64 build instructions](docs/arm64-build.md) for an opt-in native launcher
 and sidecar build. This does not remove the Wine/game runtime's Rosetta dependency
 or establish macOS 28 game compatibility.
+
+For this fork's development baseline, remaining runtime work, and validation
+order, see the [ARM64 migration overview](docs/arm64-overview.md).
