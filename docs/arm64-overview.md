@@ -1,6 +1,6 @@
 # Yaagl ARM64 迁移总览
 
-记录日期：2026-10-11。后续开发基于本 fork 的 `lumine-develop` 分支；本文件记录迁移范围、当前证据和推进顺序。
+更新日期：2026-10-12。本 fork 的开发基线为 `lumine-develop`；当前暂停本地 ARM64 迁移推进，等待上游进展。
 
 ## 当前基线
 
@@ -13,6 +13,19 @@
 | 已导入提交 | `a8cc17783e422e87256c6c7080c340d532b70e93`，直接快进，保留原提交与作者 |
 | 本机推进 | ARM 启动器已构建；两套原生运行时完成基础验证；Hadron 已到未登录页初始化并保持 150 秒且窗口有响应，MacNeutron Logo 崩溃未解决；真实画面及跨应用切换待验收，详见 [本机验证记录](arm64-validation.md) |
 | 长期议题 | [上游 issue #725](https://github.com/yaagl/yet-another-anime-game-launcher/issues/725)，仍处于调查/规划阶段 |
+
+## 当前决定：暂停本地推进，等待上游
+
+截至 2026-10-12，[上游 PR #775](https://github.com/yaagl/yet-another-anime-game-launcher/pull/775) 已在初始 ARM64 构建提交之后新增：
+
+- [`4d58bfd`](https://github.com/taco-jpg/yet-another-anime-game-launcher/commit/4d58bfd842eef9ed99352b07ccb023f0e8ccded1)：在现有原神 UI 中接入外部 Wine provider，增加启动/停止/恢复协调，跳过 provider 自带图形库的覆盖，并在 provider 模式下使用动态下载端口。
+- [`642a57a`](https://github.com/taco-jpg/yet-another-anime-game-launcher/commit/642a57ae1e6a8d2da0945d534b1f70ce9588318c)：补充游戏窗口关闭后的恢复说明及本地游戏验证记录。作者报告在 M1 Max、macOS 27.0.1 上成功登录并进入原神游戏世界，PR 附有截图；这是作者环境结果，尚未在本机复现。
+
+该 PR 仍为 open draft，尚未合并到上游主分支。本 fork 仅导入了初始提交 `a8cc177`，上述两个新增提交尚未同步。上游新增内容主要是启动器接入；本 fork 已保留的内容主要是运行时诊断、候选补丁与本机验证。上游试玩使用 Hadron 0.1.1 衍生运行时及额外 FEX 修复，其 provider 程序、运行时补丁和可复现分发包未包含在该 PR 中，不能仅靠同步接入代码获得同一运行结果。具体边界见[上游运行时说明](https://github.com/taco-jpg/yet-another-anime-game-launcher/blob/642a57ae1e6a8d2da0945d534b1f70ce9588318c/docs/external-wine-runtime.md)。
+
+当前保留本 fork 的代码、实验脚本、候选补丁、验证记录，以及 `.arm64-build` 中已有的本机运行时、prefix、游戏副本和日志；暂停进一步调试、补丁开发、启动器接入及新一轮游戏验证，暂不同步上游新增提交。
+
+等待上游继续完善运行时修复、provider 和复现/分发材料。恢复本地工作时，先核对上游新增成果的可复用范围，再决定同步与本机验收；以下改动入口和阶段表保留为参考，不作为当前执行计划。
 
 ## 目标与架构
 
@@ -90,7 +103,7 @@ Wine 提供 Windows API，FEX 执行仍然是 x86/x64 的游戏代码；不要�
 
 | 阶段 | 当前状态 | 验收与下一步 |
 | --- | --- | --- |
-| 1. 分支基线 | PR #775 已原样同步到 `lumine-develop` | 后续提交以此为基线 |
+| 1. 分支基线 | PR #775 的初始提交 `a8cc177` 已原样同步到 `lumine-develop`；新增接入提交未同步 | 恢复后先核对上游进展 |
 | 2. 原生启动器 | 本机 ARM 构建、24 个 Mach-O、签名、首次运行 UI、aria2/Sophon 检查完成 | UI 首次运行仍走默认 Intel Wine 安装，未接入原生运行时 |
 | 3. 原生运行时最小验证 | Hadron 0.2.0 / MacNeutron 0.4.0 的基础验证完成 | 已核对下载、签名，在全新 prefix 跑 x64、线程/内存、有限 TSO/SMC 和 D3D11 测试；记录中列明范围 |
 | 4. 兼容补丁与首个游戏 | 国服原神 7.1.0：Hadron 实验路径已到未登录主页初始化并保持 150 秒；MacNeutron Logo 崩溃未解决 | 当前验收为未登录正常启动及持续运行；已编译国服签名/网络超时补丁；窗口尺寸与 WM_NULL 响应通过；待核对真实画面/前台切换及优化暂停配置，继续定位 MacNeutron 崩溃 |
@@ -98,7 +111,7 @@ Wine 提供 Windows API，FEX 执行仍然是 x86/x64 的游戏代码；不要�
 | 6. 性能与其他游戏 | 未开始 | 在相同硬件和场景对比旧路径；再验证 HSR、ZZZ，分别记录结果 |
 | 7. 发布与 macOS 28 | 未开始 | 确定 ARM 产物命名和自动更新策略；在可用的 macOS 28 环境实际验收 |
 
-继续定位阶段 4；原神未登录正常启动通过前不铺开启动器运行时接入。
+当前暂停阶段 4 及后续阶段，等待上游；本机未完成的验收项保持未通过状态。
 
 ## 验证记录与结论边界
 
